@@ -4,6 +4,19 @@
 #include <azure_c_shared_utility/threadapi.h>
 #include "iot_edge_agent.h"
 
+typedef struct IOTEA_CLIENT_TAG
+{
+    bool subscribed;
+    time_t subscribeSentTimestamp;
+    char* endpoint;
+    char* name;
+    IOTHUB_MQTT_CLIENT_HANDLE mqttClient;
+    MQTT_CONNECTION_TYPE mqttConnType;
+    PROTOCOL_CALLBACK callback;
+    PROTO_TYPE protoType;
+    PROTO_MGR_HANDLE protoManager;
+} IOTEA_CLIENT;
+
 static void ResetIotEaClient(IOTEA_CLIENT_HANDLE handle)
 {
     if (NULL != handle)
@@ -13,7 +26,6 @@ static void ResetIotEaClient(IOTEA_CLIENT_HANDLE handle)
         handle->endpoint = NULL;
         handle->name = NULL;
         handle->mqttClient = NULL;
-        handle->callback.modbus = NULL;
         handle->callback.modelParse = NULL;
     }
 }
@@ -68,11 +80,6 @@ static char* GetBrokerEndpoint(char* broker, MQTT_CONNECTION_TYPE* mqttConnType)
     return endpoint;
 }
 
-static void OnRecvCallbackForModbus(IOTEA_CLIENT_HANDLE handle, IOTHUB_MQTT_CLIENT * mqttClient, PORT_RESPONSE * port_response)
-{
-    (*(handle->callback.modbus))(mqttClient, port_response);
-}
-
 static void OnRecvCallbackForModelParse(IOTEA_CLIENT_HANDLE handle, const char * json_string)
 {
     (*(handle->callback.modelParse))(json_string);
@@ -114,7 +121,8 @@ static void OnRecvCallback(MQTT_MESSAGE_HANDLE msgHandle, void* context)
 
     LOG(AZ_LOG_TRACE, LOG_LINE, "Received response: %s", topic_name);
 
-    if (strcmp(topic_name, MODEL_SUB_TOPIC) == 0) {
+    if (strcmp(topic_name, MODEL_SUB_TOPIC) == 0) 
+    {
 
         STRING_HANDLE message = STRING_from_byte_array(appMsg->message, appMsg->length);
 
@@ -125,14 +133,13 @@ static void OnRecvCallback(MQTT_MESSAGE_HANDLE msgHandle, void* context)
             LOG(AZ_LOG_TRACE, LOG_LINE, "Received Model response: NULL Message");
         }
 
-    } else if (strcmp(topic_name, SERIAL_SUB_TOPIC) == 0) {
+    } 
+    else if (strcmp(topic_name, DATA_SUB_TOPIC) == 0) 
+    {
 
-        PORT_RESPONSE * port_response = (PORT_RESPONSE *)appMsg->message;
-        OnRecvCallbackForModbus(eaHandle, mqttClient, port_response);
-
-    } else if (strcmp(topic_name, DATA_SUB_TOPIC) == 0) {
-
-    } else {
+    }
+    else 
+    {
         LogError("other topic \n");
     }
 }
@@ -212,9 +219,9 @@ static int GetSubscription(IOTEA_CLIENT_HANDLE handle, char** subscribe, size_t 
     return index;
 }
 
-void iotea_client_register_modbus(IOTEA_CLIENT_HANDLE handle, PROTOCOL_MODBUS_CALLBACK callback)
+IOTHUB_MQTT_CLIENT_HANDLE get_mqtt_client_handle(IOTEA_CLIENT_HANDLE handle)
 {
-    handle->callback.modbus = callback;
+    return handle->mqttClient;
 }
 
 void iotea_client_register_model_parse(IOTEA_CLIENT_HANDLE handle, MODEL_PARSE_CALLBACK callback)

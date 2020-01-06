@@ -302,6 +302,13 @@ int SerialPort_recv(SERIAL_PORT serialPort, ON_RECV_CALLBACK on_recv_callback, v
             if(message_handle){
                 on_recv_callback(message_handle, context);
             }
+
+            printf("RX: ");
+            for(int i = 0; i < recv_len; i++){
+                printf("%02hhx ", buffer[i]);
+            }
+            printf("\n");
+
         }
     }
     
@@ -313,7 +320,7 @@ int SerialPort_send(SERIAL_PORT serialPort, const uint8_t * send_data, size_t da
     int result = 0;
     if (serialPort->fd != -1) {
 
-        printf("data len = %d\nTX: ", (int)data_len);
+        printf("TX: ", (int)data_len);
         for (int i = 0; i < data_len; i++) {
             printf("%02hhx ", send_data[i]);
         }

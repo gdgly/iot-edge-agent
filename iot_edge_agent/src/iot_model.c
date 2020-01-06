@@ -26,24 +26,14 @@
 #define ADDRESS         "addr"
 #define RELMODEL        "relmodel"
 
-static JSON_Value * root_value;
 
-static JSON_Object * get_first_body_object(const char * josn_string)
+static JSON_Object * get_first_body_object(JSON_Value * json_value)
 {
     JSON_Object * iot_model_object;
-
-    JSON_Array * body;
+    JSON_Array  * body;
     JSON_Object * body_object;
-    // JSON_Array * regGrp;
 
-    root_value = json_parse_string(josn_string);
-
-    if (json_value_get_type(root_value) != JSONObject) {
-        printf("is not a json object\n");
-        return NULL;
-    }
-
-    iot_model_object = json_value_get_object(root_value);
+    iot_model_object = json_value_get_object(json_value);
 
     body = json_object_dotget_array(iot_model_object, "body");
 
@@ -52,30 +42,31 @@ static JSON_Object * get_first_body_object(const char * josn_string)
     return body_object;
 }
 
-static JSON_Object * get_second_body_object(const char * josn_string)
+static JSON_Object * get_second_body_object(JSON_Value * json_value)
 {
-    JSON_Object * first_body = get_first_body_object(josn_string);
+    JSON_Object * first_body = get_first_body_object(json_value);
 
-    JSON_Array * body_array = json_object_dotget_array(first_body, "body");
+    JSON_Array  * body_array = json_object_dotget_array(first_body, "body");
 
     JSON_Object * body_object = json_array_get_object(body_array, 0);
 
     return body_object;
 }
 
-PROTO_TYPE parse_proto_header(const char * json_string)
+PROTO_TYPE parse_proto_header(JSON_Value * json_value)
 {
 
-    JSON_Object * body_object = get_first_body_object(json_string);
+    JSON_Object * body_object = get_first_body_object(json_value);
 
     const char * prototype = json_object_dotget_string(body_object, "prototype");
 
-    if (strcmp(prototype, "MODBUS_RTU") == 0) {
+    if (strcmp(prototype, "MODBUS_RTU") == 0)
+    {
         return MODBUS_RTU;
     }
 }
 
-MODBUS_RTU_MODEL * modbus_model_parse(const char  * json_string)
+MODBUS_RTU_MODEL * modbus_model_parse(JSON_Value * json_value)
 {
     MODBUS_RTU_MODEL * result;
     
@@ -86,13 +77,16 @@ MODBUS_RTU_MODEL * modbus_model_parse(const char  * json_string)
     } else {
         result = malloc(sizeof(MODBUS_RTU_MODEL));
 
-        if (result == NULL) {
+        if (NULL  == result)
+        {
 
             printf("Alloc MODBUS_RTU_MODEL failed\n");
 
-        } else {
+        } 
+        else 
+        {
 
-            JSON_Object * body = get_second_body_object(json_string);
+            JSON_Object * body = get_second_body_object(json_value);
 
             result->acq_int = (int)json_object_dotget_number(body, ACQINT);
 
@@ -108,34 +102,41 @@ MODBUS_RTU_MODEL * modbus_model_parse(const char  * json_string)
 
             REGISTER_GROUP * temp = reg_group;
 
-            for ( int i = 0; i < reg_grp_len; i++) {
+            for ( int i = 0; i < reg_grp_len; i++) 
+            {
+
                 JSON_Object * arr = json_array_get_object(reg_grp, i);
 
-                if (mallocAndStrcpy_s(&(temp->df), json_object_dotget_string(arr, DF)) != 0) {
+                if (mallocAndStrcpy_s(&(temp->df), json_object_dotget_string(arr, DF)) != 0)
+                {
                     LOG(AZ_LOG_ERROR, LOG_LINE, "mallocAndStrcpy_s df");
                     free(result);
                     return NULL;
                 }
 
-                if (mallocAndStrcpy_s(&(temp->relmodel), json_object_dotget_string(arr, RELMODEL)) != 0) {
+                if (mallocAndStrcpy_s(&(temp->relmodel), json_object_dotget_string(arr, RELMODEL)) != 0)
+                {
                     LOG(AZ_LOG_ERROR, LOG_LINE, "mallocAndStrcpy_s relmodel");
                     free(result);
                     return NULL;
                 }
 
-                if (mallocAndStrcpy_s(&(temp->math), json_object_dotget_string(arr, MATH)) != 0) {
+                if (mallocAndStrcpy_s(&(temp->math), json_object_dotget_string(arr, MATH)) != 0)
+                {
                     LOG(AZ_LOG_ERROR, LOG_LINE, "mallocAndStrcpy_s math");
                     free(result);
                     return NULL;
                 }
 
-                if (mallocAndStrcpy_s(&(temp->address), json_object_dotget_string(arr, ADDRESS)) != 0) {
+                if (mallocAndStrcpy_s(&(temp->address), json_object_dotget_string(arr, ADDRESS)) != 0)
+                {
                     LOG(AZ_LOG_ERROR, LOG_LINE, "mallocAndStrcpy_s address");
                     free(result);
                     return NULL;
                 }
 
-                if (mallocAndStrcpy_s(&(temp->m), json_object_dotget_string(arr, M)) != 0) {
+                if (mallocAndStrcpy_s(&(temp->m), json_object_dotget_string(arr, M)) != 0)
+                {
                     LOG(AZ_LOG_ERROR, LOG_LINE, "mallocAndStrcpy_s m");
                     free(result);
                     return NULL;
@@ -155,5 +156,5 @@ MODBUS_RTU_MODEL * modbus_model_parse(const char  * json_string)
 
 void iot_model_free(void)
 {
-    json_value_free(root_value);
+    return;
 }

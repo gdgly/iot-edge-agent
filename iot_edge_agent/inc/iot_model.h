@@ -22,8 +22,8 @@ typedef struct MODBUS_RTU_MODEL_TAG {
     REGISTER_GROUP * register_group;
 } MODBUS_RTU_MODEL;
 
-MODBUS_RTU_MODEL * modbus_model_parse(const char  * json_string);
-PROTO_TYPE parse_proto_header(const char * josn_string);
+MODBUS_RTU_MODEL * modbus_model_parse(JSON_Value * json_value);
+PROTO_TYPE parse_proto_header(JSON_Value * json_value);
 void iot_model_free(void);
 
 

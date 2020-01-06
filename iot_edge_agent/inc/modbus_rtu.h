@@ -17,13 +17,6 @@ typedef struct DATA_RESPONSE_TAG {
     uint8_t length;
 } DATA_RESPONSE;
 
-// typedef struct DATA_RESPONSE_TAG {
-//     union {
-//         uint16_t * regs;
-//         uint8_t * coils;
-//     };
-//     uint8_t length;
-// } DATA_RESPONSE;
 
 DATA_REQUEST * init_modbus(int slave_addr, int index, int count);
 DATA_RESPONSE * parser_modbus(uint8_t * data, uint8_t length);

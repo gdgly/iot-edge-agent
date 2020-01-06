@@ -17,7 +17,7 @@
             ],
             "body":[
                 {
-                    "acqInt":60,
+                    "acqInt":10,
                     "upm":0,
                     "singleRegMax":20,
                     "crcType":0,
