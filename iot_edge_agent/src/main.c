@@ -8,20 +8,24 @@
 #include <azure_c_shared_utility/threadapi.h>
 #include <azure_c_shared_utility/buffer_.h>
 #include <azure_c_shared_utility/tickcounter.h>
+#include <azure_c_shared_utility/singlylinkedlist.h>
 
+#include "main.h"
 #include "parson.h"
 #include "iot_model.h"
 #include "modbus_rtu.h"
 #include "serial_port.h"
-#include "iot_edge_agent.h"
+#include "iotea_client.h"
 #include "protocol_manager.h"
 
 #define PROGRAM_VERSION "1.0"
 
 #define ADDRESS  "tcp://192.168.199.12:1883"
-#define DEVICE   "MODBUS_RTU"
+#define DEVICE   "temp_humi"
 #define USERNAME "test"
 #define PASSWORD "hahaha"
+
+#define OPEN_SERIAL
 
 int interval = -1;
 
@@ -30,6 +34,10 @@ MODBUS_RTU_MODEL * modbus_model = NULL;
 
 DATA_REQUEST * data_request = NULL;
 DATA_RESPONSE * data_response = NULL;
+
+SERIAL_PORT_HANDLE * serial_handle_head;
+
+SINGLYLINKEDLIST_HANDLE device_list;
 
 static const struct option long_options[]=
 {
@@ -156,6 +164,29 @@ static DATA_REQUEST * protocol_init_by_model(MODBUS_RTU_MODEL * model)
     return data_request;
 }
 
+static void serial_init_by_list(const void* item, const void* action_context, bool* continue_processing)
+{
+
+    DEVICE_CHANNEL_INFO * device_info = (DEVICE_CHANNEL_INFO *)(item);
+
+    device_info->serial_handle = SerialPort_create(device_info->device_port->serialID, device_info->device_port->baudRate, device_info->device_port->dataBit, device_info->device_port->parity, device_info->device_port->stopBit);
+    
+    if (NULL == device_info->serial_handle)
+    {
+        LogError("Serial Port Init Failed");
+        *continue_processing = false;
+        return;
+    }
+
+    bool rc = SerialPort_open(device_info->serial_handle);
+    if (false == rc)
+    {
+        LogError("Serial Port Open Failed");
+        *continue_processing = false;
+        return;
+    }
+    *continue_processing = true;
+}
 
 static void HandleModelParse(const char * json_string)
 {
@@ -176,9 +207,7 @@ static void HandleModelParse(const char * json_string)
     switch (proto_type)
     {
         case MODBUS_RTU:
-
             modbus_model = modbus_model_parse(root_value);
-
             if (NULL == modbus_model) 
             {
                 LogError("modbus model parse failed");
@@ -186,19 +215,50 @@ static void HandleModelParse(const char * json_string)
             else
             {
                 data_request = protocol_init_by_model(modbus_model);
-
                 if (NULL == data_request)
                 {
                     LogError("protocol_init_by_model failed");
                 }
             }
-
             json_value_free(root_value);
             break;
-
         default:
             break;
     }
+}
+
+static void HandleDeviceParse(const char * json_string)
+{
+
+    printf("%s\n", json_string);
+
+    JSON_Value * root_value;
+
+    root_value = json_parse_string(json_string);
+
+    if (json_value_get_type(root_value) != JSONObject)
+    {
+        LogError("Not a JSON Object");
+        return;
+    }
+
+    SINGLYLINKEDLIST_HANDLE device_list = singlylinkedlist_create();
+
+    int device_count = 0;
+    int rc = parse_device_info_to_list(root_value, device_list, &device_count);
+
+    if (0 != rc)
+        LogError("parse_device_info_to_list failed");
+    
+    // LIST_ITEM_HANDLE item = singlylinkedlist_get_head_item(device_list);
+
+    // DEVICE_CHANNEL_INFO * device_info = (DEVICE_CHANNEL_INFO *)singlylinkedlist_item_get_value(item);
+    // LogInfo("%d", device_info->devAddr);
+    // LogInfo("%s", device_info->device_port->serialID);
+
+    singlylinkedlist_foreach(device_list, serial_init_by_list, NULL);
+
+    json_value_free(root_value);
 }
 
 void OnSerialRecvCallback(SERIAL_MESSAGE_HANDLE Serial_Msg, void * context)
@@ -257,26 +317,8 @@ void OnSerialRecvCallback(SERIAL_MESSAGE_HANDLE Serial_Msg, void * context)
 int iotea_client_run(const char * host, const char * username, const char * password)
 {
 
-    // serial init
-    SERIAL_PORT serial_port = SerialPort_create("/dev/ttyUSB4", 9600, 8, 'N', 1);
-    if (NULL == serial_port)
-    {
-        LOG(AZ_LOG_ERROR, LOG_LINE, "Error: serial port init failed");
-        return __FAILURE__;
-    }
-
-    bool rc = SerialPort_open(serial_port);
-    if (false == rc) 
-    {
-        SerialPort_destroy(serial_port);
-        LOG(AZ_LOG_ERROR, LOG_LINE, "Error: serial port open failed");
-        return __FAILURE__;
-    }
-
     if (0 != platform_init())
     {
-        SerialPort_close(serial_port);
-        SerialPort_destroy(serial_port);
         LogError("platform_init failed");
         return __FAILURE__;
     }
@@ -294,8 +336,6 @@ int iotea_client_run(const char * host, const char * username, const char * pass
     if (NULL == handle)
     {
         platform_deinit();
-        SerialPort_close(serial_port);
-        SerialPort_destroy(serial_port);
         LogError("iotea_client_init failed");
         return __FAILURE__;
     }
@@ -306,6 +346,7 @@ int iotea_client_run(const char * host, const char * username, const char * pass
 
     // register model 
     iotea_client_register_model_parse(handle, HandleModelParse);
+    iotea_client_register_device_parse(handle, HandleDeviceParse);
 
     IOTEA_CLIENT_OPTIONS options;
     options.cleanSession = true;
@@ -327,9 +368,6 @@ int iotea_client_run(const char * host, const char * username, const char * pass
     {
         iotea_client_deinit(handle);
         platform_deinit();
-        SerialPort_close(serial_port);
-        SerialPort_destroy(serial_port);
-
         LogError("iotea_client_connect failed");
         return __FAILURE__;
     }
@@ -338,7 +376,6 @@ int iotea_client_run(const char * host, const char * username, const char * pass
         LogInfo("iotea client connected");
     }
     
-
     iotea_client_dowork(handle);
 
     TICK_COUNTER_HANDLE tickCounterHandle = tickcounter_create();
@@ -347,7 +384,7 @@ int iotea_client_run(const char * host, const char * username, const char * pass
 
     while (iotea_client_dowork(handle) >= 0)
     {
-        SerialPort_recv(serial_port, OnSerialRecvCallback, handle);
+
         tickcounter_get_current_ms(tickCounterHandle, &currentTime);
 
         if (-1 != interval && (currentTime - lastSendTime) / 1000 > interval)
@@ -355,8 +392,10 @@ int iotea_client_run(const char * host, const char * username, const char * pass
 
             if(data_request) 
             {
-                int res = SerialPort_send(serial_port, data_request->data, data_request->length);
-                printf("send serial data\n");
+                // #ifdef OPEN_SERIAL
+                // int res = SerialPort_send(serial_port, data_request->data, data_request->length);
+                // printf("send serial data\n");
+                // #endif
             }
 
             lastSendTime = currentTime;
@@ -365,8 +404,6 @@ int iotea_client_run(const char * host, const char * username, const char * pass
         ThreadAPI_Sleep(10);
     }
 
-    SerialPort_close(serial_port);
-    SerialPort_destroy(serial_port);
     tickcounter_destroy(tickCounterHandle);
     iotea_client_deinit(handle);
     platform_deinit();

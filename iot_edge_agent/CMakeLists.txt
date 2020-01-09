@@ -28,10 +28,10 @@ include_directories(../parson)
 set(iot_edge_agent_c_files
     ../parson/parson.c
     ./src/serial_port.c
-    ./src/iot_edge_agent.c
     ./src/modbus_rtu.c
     ./src/protocol_manager.c
     ./src/iot_model.c
+    ./src/iotea_client.c
     ./src/main.c
 )
 
@@ -41,7 +41,8 @@ set(iot_edge_agent_h_files
     ./inc/modbus_rtu.h
     ./inc/protocol_manager.h
     ./inc/iot_model.h
-    ./inc/iot_edge_agent.h
+    ./inc/iotea_client.h
+    ./inc/main.h
 )
 
 include_directories(${AZURE_C_SHARED_UTILITY_INCLUDES})

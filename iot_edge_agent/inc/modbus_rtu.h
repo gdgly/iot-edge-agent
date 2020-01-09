@@ -1,6 +1,10 @@
 #ifndef MODBUS_RTU_H
 #define MODBUS_RTU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "stdint.h"
 #include "protocol_manager.h"
 
@@ -21,5 +25,9 @@ typedef struct DATA_RESPONSE_TAG {
 DATA_REQUEST * init_modbus(int slave_addr, int index, int count);
 DATA_RESPONSE * parser_modbus(uint8_t * data, uint8_t length);
 void free_modbus(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

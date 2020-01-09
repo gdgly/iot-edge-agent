@@ -2,7 +2,8 @@
 #include <azure_c_shared_utility/uuid.h>
 #include <azure_c_shared_utility/strings.h>
 #include <azure_c_shared_utility/threadapi.h>
-#include "iot_edge_agent.h"
+#include "iotea_client.h"
+#include "parson.h"
 
 typedef struct IOTEA_CLIENT_TAG
 {
@@ -13,8 +14,6 @@ typedef struct IOTEA_CLIENT_TAG
     IOTHUB_MQTT_CLIENT_HANDLE mqttClient;
     MQTT_CONNECTION_TYPE mqttConnType;
     PROTOCOL_CALLBACK callback;
-    PROTO_TYPE protoType;
-    PROTO_MGR_HANDLE protoManager;
 } IOTEA_CLIENT;
 
 static void ResetIotEaClient(IOTEA_CLIENT_HANDLE handle)
@@ -27,6 +26,7 @@ static void ResetIotEaClient(IOTEA_CLIENT_HANDLE handle)
         handle->name = NULL;
         handle->mqttClient = NULL;
         handle->callback.modelParse = NULL;
+        handle->callback.deviceParse = NULL;
     }
 }
 
@@ -85,6 +85,11 @@ static void OnRecvCallbackForModelParse(IOTEA_CLIENT_HANDLE handle, const char *
     (*(handle->callback.modelParse))(json_string);
 }
 
+static void OnRecvCallbackForDeviceParse(IOTEA_CLIENT_HANDLE handle, const char * json_string)
+{
+    (*(handle->callback.deviceParse))(json_string);
+}
+
 static int SendModelReq(IOTEA_CLIENT_HANDLE handle)
 {
     int result;
@@ -105,8 +110,29 @@ static int SendModelReq(IOTEA_CLIENT_HANDLE handle)
     return result;
 }
 
+static int SendDeviceQueryReq(IOTEA_CLIENT_HANDLE handle, bool is_send_for_list)
+{
+    int result;
+    char publishData[1024] = {'\0'};
+
+    if (true == is_send_for_list)
+    {
+        sprintf(publishData, "{\"token\": \"1245sfvhjkklm\",\"fsn\":\"123\",\"flat\":\"flat\",\"timestamp\": \"2019-07-09T09:30:08.230Z\",\"body\":\"\"}");
+        publish_mqtt_message(handle->mqttClient, DEVICE_LIST_PUB, DELIVER_AT_LEAST_ONCE, (const uint8_t*)publishData, strlen(publishData), NULL , NULL);
+    }
+    else
+    {
+        sprintf(publishData, "{\"token\": \"1245sfvhjkklm\",\"fsn\":\"123\",\"flat\":\"flat\",\"timestamp\": \"2019-07-09T09:30:08.230Z\",\"body\":[{\"dev\":\"%s\"}]}", handle->name);
+        publish_mqtt_message(handle->mqttClient, DEVICE_INFO_PUB, DELIVER_AT_LEAST_ONCE, (const uint8_t*)publishData, strlen(publishData), NULL , NULL);
+    }
+    
+    LogInfo("%s", publishData);
+    return result;
+}
+
 static void OnRecvCallback(MQTT_MESSAGE_HANDLE msgHandle, void* context)
 {
+
     const char* topic_name = mqttmessage_getTopicName(msgHandle);
     const APP_PAYLOAD* appMsg = mqttmessage_getApplicationMsg(msgHandle);
 
@@ -121,27 +147,68 @@ static void OnRecvCallback(MQTT_MESSAGE_HANDLE msgHandle, void* context)
 
     LOG(AZ_LOG_TRACE, LOG_LINE, "Received response: %s", topic_name);
 
+    STRING_HANDLE message = STRING_from_byte_array(appMsg->message, appMsg->length);
+
+    if (NULL == message) {
+        LOG(AZ_LOG_TRACE, LOG_LINE, "Received Model response: NULL Message"); 
+        return;
+    }
+
+    // LogInfo("%s", STRING_c_str(message));
+
     if (strcmp(topic_name, MODEL_SUB_TOPIC) == 0) 
     {
-
-        STRING_HANDLE message = STRING_from_byte_array(appMsg->message, appMsg->length);
-
-        if (message != NULL) {
-            OnRecvCallbackForModelParse(eaHandle, STRING_c_str(message));
-            STRING_delete(message);
-        } else {
-            LOG(AZ_LOG_TRACE, LOG_LINE, "Received Model response: NULL Message");
-        }
-
-    } 
-    else if (strcmp(topic_name, DATA_SUB_TOPIC) == 0) 
+        OnRecvCallbackForModelParse(eaHandle, STRING_c_str(message));
+    }
+    else if (strcmp(topic_name, DEVICE_INFO_SUB) == 0) 
+    {
+        OnRecvCallbackForDeviceParse(eaHandle, STRING_c_str(message));
+    }
+    else if (strcmp(topic_name, DEVICE_LIST_SUB) == 0) 
     {
 
+        JSON_Value * root_value;
+
+        root_value = json_parse_string(STRING_c_str(message));
+
+        if (json_value_get_type(root_value) != JSONObject)
+        {
+            LogError("Not a JSON Object");
+        }
+        else
+        {
+            JSON_Object * device_list;
+            JSON_Array  * body_array;
+            JSON_Object * body_content;
+            
+            device_list = json_value_get_object(root_value);
+            body_array  = json_object_dotget_array(device_list, "body");
+            int body_arr_len = json_array_get_count(body_array);
+            bool exist_in_list = false;
+
+            for (int i = 0; i < body_arr_len; i++)
+            {
+                body_content = json_array_get_object(body_array, i);
+                const char * device_name = json_object_dotget_string(body_content, "dev");
+                if (strcmp(device_name, eaHandle->name) == 0)
+                    exist_in_list = true;
+            }
+            if (true == exist_in_list)
+            {
+                SendDeviceQueryReq(eaHandle, false);
+            }
+            else
+            {
+                LogError("%s Not Exist", eaHandle->name);
+            }
+        }
+        json_value_free(root_value);
     }
     else 
     {
-        LogError("other topic \n");
+        LogError("Unknown Topic \n");
     }
+    STRING_delete(message);
 }
 
 static int OnSubAckCallback(QOS_VALUE* qosReturn, size_t qosCount, void *context)
@@ -157,7 +224,8 @@ static int OnSubAckCallback(QOS_VALUE* qosReturn, size_t qosCount, void *context
     IOTEA_CLIENT_HANDLE handle = context;
     handle->subscribed = true;
     LogInfo("Subscribed topics");
-    SendModelReq(handle);
+    SendDeviceQueryReq(handle, true);
+    // SendModelReq(handle);
     return 0;
 }
 
@@ -214,7 +282,8 @@ static int GetSubscription(IOTEA_CLIENT_HANDLE handle, char** subscribe, size_t 
 
     subscribe[index++] = DATA_SUB_TOPIC;
     subscribe[index++] = MODEL_SUB_TOPIC;
-    subscribe[index++] = SERIAL_SUB_TOPIC;
+    subscribe[index++] = DEVICE_INFO_SUB;
+    subscribe[index++] = DEVICE_LIST_SUB;
 
     return index;
 }
@@ -227,6 +296,11 @@ IOTHUB_MQTT_CLIENT_HANDLE get_mqtt_client_handle(IOTEA_CLIENT_HANDLE handle)
 void iotea_client_register_model_parse(IOTEA_CLIENT_HANDLE handle, MODEL_PARSE_CALLBACK callback)
 {
     handle->callback.modelParse = callback;
+}
+
+void iotea_client_register_device_parse(IOTEA_CLIENT_HANDLE handle, DEVICE_PARSE_CALLBACK callback)
+{
+    handle->callback.deviceParse = callback;
 }
 
 IOTEA_CLIENT_HANDLE iotea_client_init(char* broker, char* name)
@@ -253,7 +327,7 @@ IOTEA_CLIENT_HANDLE iotea_client_init(char* broker, char* name)
         return NULL;
     }
     handle->name = name;
-    handle->protoManager = protocol_init(MODBUS_RTU);
+    // handle->protoManager = protocol_init(MODBUS_RTU);
     return handle;
 }
 

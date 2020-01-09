@@ -1,5 +1,9 @@
-#ifndef SOUTH_LEVEL_H
-#define SOUTH_LEVEL_H
+#ifndef PROTO_MANAGER_H
+#define PROTO_MANAGER_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "modbus_rtu.h"
 
@@ -19,5 +23,9 @@ typedef struct PROTO_MGR_TAG {
 } PROTO_MGR, * PROTO_MGR_HANDLE;
 
 PROTO_MGR_HANDLE protocol_init(PROTO_TYPE proto_type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

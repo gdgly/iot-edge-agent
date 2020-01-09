@@ -11,10 +11,12 @@ extern "C" {
 #include "protocol_manager.h"
 
 typedef void (*MODEL_PARSE_CALLBACK) (const char * json_string);
+typedef void (*DEVICE_PARSE_CALLBACK) (const char * json_string);
 
 typedef struct PROTOCOL_CALLBACK_TAG
 {
     MODEL_PARSE_CALLBACK modelParse;
+    DEVICE_PARSE_CALLBACK deviceParse;
 } PROTOCOL_CALLBACK;
 
 
@@ -39,7 +41,9 @@ typedef struct IOTEA_CLIENT_OPTIONS_TAG
 
 
 MOCKABLE_FUNCTION(, IOTHUB_MQTT_CLIENT_HANDLE, get_mqtt_client_handle, IOTEA_CLIENT_HANDLE, handle);
+
 MOCKABLE_FUNCTION(, void, iotea_client_register_model_parse, IOTEA_CLIENT_HANDLE, handle, MODEL_PARSE_CALLBACK, callback);
+MOCKABLE_FUNCTION(, void, iotea_client_register_device_parse, IOTEA_CLIENT_HANDLE, handle, DEVICE_PARSE_CALLBACK, callback);
 MOCKABLE_FUNCTION(, IOTEA_CLIENT_HANDLE, iotea_client_init, char*, broker, char*, name);
 MOCKABLE_FUNCTION(, void, iotea_client_deinit, IOTEA_CLIENT_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, iotea_client_connect, IOTEA_CLIENT_HANDLE, handle, const IOTEA_CLIENT_OPTIONS *, options);

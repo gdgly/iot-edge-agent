@@ -1,0 +1,27 @@
+{
+    "token":"1245sfvhjkklm",
+    "fsn":"123",
+    "timestamp":"2019-07-09T09:30:08.230Z",
+    "body":[
+        {
+            "dev":"temp_humi",
+            "acqInt":60,
+            "upm":1,
+            "protoType":"MODBUSRTU",
+            "modelType":"temp_humi",
+            "timeOut":1000,
+            "port":{
+                "portType":"serial",
+                "serialID":"ttyUSB4",
+                "baudRate":"9600",
+                "dataBit":8,
+                "stopBit":1,
+                "parity":"NONE",
+                "ip":"192.168.2.22",
+                "port":"502"
+            },
+            "devAddr":"01"
+        }
+    ]
+}
+

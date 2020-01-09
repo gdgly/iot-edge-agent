@@ -10,14 +10,12 @@
 
 #include "serial_port.h"
 
-int gpio = (UART_GPIO2_VAL | UART_GPIO2_MASK);
-
 #define BUFF_SIZE 256
 uint8_t buffer[BUFF_SIZE];
 
-struct SERIAL_PORT_TAG {
-    char interfaceName[100];
+typedef struct SERIAL_PORT_TAG {
     int fd;
+    char interfaceName[100];
     int baudRate;
     uint8_t dataBits;
     char parity;
@@ -25,59 +23,58 @@ struct SERIAL_PORT_TAG {
     uint64_t lastSentTime;
     struct timeval timeout;
     SerialPortError lastError;
-} SERIAL_PORT_TAG;
+} SERIAL_PORT;
 
-
-SERIAL_PORT SerialPort_create(const char* interfaceName, int baudRate, uint8_t dataBits, char parity, uint8_t stopBits)
+SERIAL_PORT_HANDLE SerialPort_create(const char* interfaceName, int baudRate, uint8_t dataBits, char parity, uint8_t stopBits)
 {
-    SERIAL_PORT serialPort = (SERIAL_PORT) malloc(sizeof(SERIAL_PORT_TAG));
+    SERIAL_PORT_HANDLE handle = (SERIAL_PORT_HANDLE) malloc(sizeof(SERIAL_PORT));
 
-    if (serialPort != NULL) {
-        serialPort->fd = -1;
-        serialPort->baudRate = baudRate;
-        serialPort->dataBits = dataBits;
-        serialPort->stopBits = stopBits;
-        serialPort->parity = parity;
-        serialPort->lastSentTime = 0;
-        serialPort->timeout.tv_sec = 0;
-        serialPort->timeout.tv_usec = 5000; /* 5 ms */
-        strncpy(serialPort->interfaceName, interfaceName, 100);
-        serialPort->lastError = SERIAL_PORT_ERROR_NONE;
+    if (handle != NULL) {
+        handle->fd = -1;
+        handle->baudRate = baudRate;
+        handle->dataBits = dataBits;
+        handle->stopBits = stopBits;
+        handle->parity = parity;
+        handle->lastSentTime = 0;
+        handle->timeout.tv_sec = 0;
+        handle->timeout.tv_usec = 5000; /* 5 ms */
+        strncpy(handle->interfaceName, interfaceName, 100);
+        handle->lastError = SERIAL_PORT_ERROR_NONE;
     }
 
-    return serialPort;
+    return handle;
 }
 
-void SerialPort_destroy(SERIAL_PORT serialPort)
+void SerialPort_destroy(SERIAL_PORT_HANDLE handle)
 {
-    if (serialPort != NULL) {
-        free(serialPort);
+    if (handle != NULL) {
+        free(handle);
     }
 }
 
-bool SerialPort_open(SERIAL_PORT serialPort)
+bool SerialPort_open(SERIAL_PORT_HANDLE handle)
 {
-    serialPort->fd = open(serialPort->interfaceName, O_RDWR | O_NOCTTY | O_NDELAY);
+    handle->fd = open(handle->interfaceName, O_RDWR | O_NOCTTY | O_NDELAY);
 
-    if (serialPort->fd == -1) {
-        serialPort->lastError = SERIAL_PORT_ERROR_OPEN_FAILED;
+    if (handle->fd == -1) {
+        handle->lastError = SERIAL_PORT_ERROR_OPEN_FAILED;
         return false;
     }
 
-    if( ! isatty(serialPort->fd) ){
+    if( ! isatty(handle->fd) ){
         return false;
     }
 
-    if( fcntl(serialPort->fd, F_SETFL, 0) == -1 ){
+    if( fcntl(handle->fd, F_SETFL, 0) == -1 ){
         return false;
     }
 
     struct termios tios;
     speed_t baudrate;
 
-    tcgetattr(serialPort->fd, &tios);
+    tcgetattr(handle->fd, &tios);
 
-    switch (serialPort->baudRate) {
+    switch (handle->baudRate) {
     case 110:
         baudrate = B110;
         break;
@@ -113,21 +110,21 @@ bool SerialPort_open(SERIAL_PORT serialPort)
         break;
     default:
         baudrate = B9600;
-        serialPort->lastError = SERIAL_PORT_ERROR_INVALID_BAUDRATE;
+        handle->lastError = SERIAL_PORT_ERROR_INVALID_BAUDRATE;
     }
 
     /* Set baud rate */
     if ((cfsetispeed(&tios, baudrate) < 0) || (cfsetospeed(&tios, baudrate) < 0)) {
-        close(serialPort->fd);
-        serialPort->fd = -1;
-        serialPort->lastError = SERIAL_PORT_ERROR_INVALID_BAUDRATE;
+        close(handle->fd);
+        handle->fd = -1;
+        handle->lastError = SERIAL_PORT_ERROR_INVALID_BAUDRATE;
         return false;
     }
 
     tios.c_cflag |= (CREAD | CLOCAL);
     tios.c_cflag &= ~CSIZE;
 
-    switch (serialPort->dataBits) {
+    switch (handle->dataBits) {
     case 5:
         tios.c_cflag |= CS5;
         break;
@@ -144,14 +141,14 @@ bool SerialPort_open(SERIAL_PORT serialPort)
     }
 
     /* Set stop bits (1/2) */
-    if (serialPort->stopBits == 1)
+    if (handle->stopBits == 1)
         tios.c_cflag &=~ CSTOPB;
     else /* 2 */
         tios.c_cflag |= CSTOPB;
 
-    if (serialPort->parity == 'N') {
+    if (handle->parity == 'N') {
         tios.c_cflag &=~ PARENB;
-    } else if (serialPort->parity == 'E') {
+    } else if (handle->parity == 'E') {
         tios.c_cflag |= PARENB;
         tios.c_cflag &=~ PARODD;
     } else { /* 'O' */
@@ -161,7 +158,7 @@ bool SerialPort_open(SERIAL_PORT serialPort)
 
     tios.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
-    if (serialPort->parity == 'N') {
+    if (handle->parity == 'N') {
         tios.c_iflag &= ~INPCK;
     } else {
         tios.c_iflag |= INPCK;
@@ -175,49 +172,46 @@ bool SerialPort_open(SERIAL_PORT serialPort)
     tios.c_cc[VMIN] = 0;
     tios.c_cc[VTIME] = 1;
 
-    tcflush(serialPort->fd, TCIFLUSH);
+    tcflush(handle->fd, TCIFLUSH);
 
-    if (tcsetattr(serialPort->fd, TCSANOW, &tios) < 0) {
-        close(serialPort->fd);
-        serialPort->fd = -1;
-        serialPort->lastError = SERIAL_PORT_ERROR_INVALID_ARGUMENT;
+    if (tcsetattr(handle->fd, TCSANOW, &tios) < 0) {
+        close(handle->fd);
+        handle->fd = -1;
+        handle->lastError = SERIAL_PORT_ERROR_INVALID_ARGUMENT;
         
         return false;
     }
 
-    gpio &= 0xffff;
-    ioctl(serialPort->fd, IOCTL_GPIOSET, &gpio);
-    
     return true;
 }
 
-void SerialPort_close(SERIAL_PORT serialPort)
+void SerialPort_close(SERIAL_PORT_HANDLE handle)
 {
-    if (serialPort->fd != -1) {
-        close(serialPort->fd);
-        serialPort->fd = 0;
+    if (handle->fd != -1) {
+        close(handle->fd);
+        handle->fd = 0;
     }
 }
 
-int SerialPort_getBaudRate(SERIAL_PORT serialPort)
+int SerialPort_getBaudRate(SERIAL_PORT_HANDLE handle)
 {
-    return serialPort->baudRate;
+    return handle->baudRate;
 }
 
-void SerialPort_discardInBuffer(SERIAL_PORT serialPort)
+void SerialPort_discardInBuffer(SERIAL_PORT_HANDLE handle)
 {
-    tcflush(serialPort->fd, TCIOFLUSH);
+    tcflush(handle->fd, TCIOFLUSH);
 }
 
-void SerialPort_setTimeout(SERIAL_PORT serialPort, int timeout)
+void SerialPort_setTimeout(SERIAL_PORT_HANDLE handle, int timeout)
 {
-    serialPort->timeout.tv_sec = timeout / 1000;
-    serialPort->timeout.tv_usec = (timeout % 1000) * 1000;
+    handle->timeout.tv_sec = timeout / 1000;
+    handle->timeout.tv_usec = (timeout % 1000) * 1000;
 }
 
-SerialPortError SerialPort_getLastError(SERIAL_PORT serialPort)
+SerialPortError SerialPort_getLastError(SERIAL_PORT_HANDLE handle)
 {
-    return serialPort->lastError;
+    return handle->lastError;
 }
 
 SERIAL_MESSAGE_HANDLE SerialPort_message_create(const uint8_t * message, size_t length){
@@ -259,7 +253,7 @@ void SerialPort_message_destroy(SERIAL_MESSAGE_HANDLE handle)
     }
 }
 
-int SerialPort_recv(SERIAL_PORT serialPort, ON_RECV_CALLBACK on_recv_callback, void * context)
+int SerialPort_recv(SERIAL_PORT_HANDLE handle, ON_RECV_CALLBACK on_recv_callback, void * context)
 {
     fd_set set;
     uint8_t * temp_buf = buffer;
@@ -267,22 +261,22 @@ int SerialPort_recv(SERIAL_PORT serialPort, ON_RECV_CALLBACK on_recv_callback, v
     size_t recv_len = 0;
     int nbyte = -1;
 
-    serialPort->lastError = SERIAL_PORT_ERROR_NONE;
+    handle->lastError = SERIAL_PORT_ERROR_NONE;
 
     FD_ZERO(&set);
-    FD_SET(serialPort->fd, &set);
+    FD_SET(handle->fd, &set);
 
-    int ret = select(serialPort->fd + 1, &set, NULL, NULL, &(serialPort->timeout));
+    int ret = select(handle->fd + 1, &set, NULL, NULL, &(handle->timeout));
 
     if (ret == -1) {
-        serialPort->lastError = SERIAL_PORT_ERROR_UNKNOWN;
+        handle->lastError = SERIAL_PORT_ERROR_UNKNOWN;
         return -1;
     } else if (ret == 0)
         return -1;
     else {
 
         while(nbyte && left) {
-            nbyte = read(serialPort->fd, temp_buf, left);
+            nbyte = read(handle->fd, temp_buf, left);
             
             if(nbyte == -1) {
                 return -1;
@@ -315,20 +309,20 @@ int SerialPort_recv(SERIAL_PORT serialPort, ON_RECV_CALLBACK on_recv_callback, v
     return 1;
 }
 
-int SerialPort_send(SERIAL_PORT serialPort, const uint8_t * send_data, size_t data_len){
+int SerialPort_send(SERIAL_PORT_HANDLE handle, const uint8_t * send_data, size_t data_len){
 
     int result = 0;
-    if (serialPort->fd != -1) {
+    if (handle->fd != -1) {
 
-        printf("TX: ", (int)data_len);
+        printf("TX: ");
         for (int i = 0; i < data_len; i++) {
             printf("%02hhx ", send_data[i]);
         }
         printf("\n");
 
-        int nbyte = write(serialPort->fd, send_data, data_len);
+        int nbyte = write(handle->fd, send_data, data_len);
 
-        // tcdrain(serialPort->fd);
+        // tcdrain(handle->fd);
 
         if (nbyte == -1) {
             return -1;
