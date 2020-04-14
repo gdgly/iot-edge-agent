@@ -26,12 +26,8 @@ set(CMAKE_FIND_ROOT_PATH ${TOOLCHAIN_DIR} ${TOOLCHAIN_DIR}/arm-linux-gnueabi/inc
 set(OPENSSL_ROOT_DIR /home/minbo/toolchain/openssl)
 set(CURL_LIBRARY /home/minbo/toolchain/curl/lib)
 set(CURL_INCLUDE_DIR /home/minbo/toolchain/curl/include)
-option(is_arm "set is_arm to ON if compiler is to be used, set to OFF to not use http" ON)
 
-# set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-# set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-# set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-# set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+option(is_arm "set is_arm to ON if arm compiler is to be used" ON)
 
 cmake_minimum_required(VERSION 2.8.11)
 project(iot_edge_c_sdk)
@@ -260,9 +256,10 @@ if(NOT ${use_http})
     message(STATUS "iothub_service_client build is disabled (HTTP support is required)")
 endif()
 
-add_subdirectory(serializer)
+
 add_subdirectory(iothub_client)
 add_subdirectory(liblightmodbus)
+add_subdirectory(libdlt698)
 add_subdirectory(iot_edge_agent)
 
 #Set CMAKE_INSTALL_LIBDIR if not defined

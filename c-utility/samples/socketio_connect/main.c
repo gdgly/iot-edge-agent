@@ -23,7 +23,7 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
     {
         XIO_HANDLE socketio = (XIO_HANDLE)context;
         const char to_send[] = "GET / HTTP/1.1\r\n"
-            "Host: www.google.com\r\n"
+            "Host: www.baidu.com\r\n"
             "\r\n";
         (void)printf("Sending bytes ...\r\n");
         if (xio_send(socketio, to_send, sizeof(to_send), on_send_complete, NULL) != 0)
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
             SOCKETIO_CONFIG socketio_config;
             XIO_HANDLE socketio;
 
-            socketio_config.hostname = "www.google.com";
+            socketio_config.hostname = "www.baidu.com";
             socketio_config.port = 80;
             socketio = xio_create(socketio_interface, &socketio_config);
             if (socketio == NULL)

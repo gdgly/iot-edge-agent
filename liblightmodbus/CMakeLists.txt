@@ -122,7 +122,7 @@ set( DEFAULT_MODULES
 	#Master
 	"MASTER_BASE"
 	"F01M" "F02M" "F03M" "F04M" "F05M" "F06M" "F15M" "F16M" "F22M"
-	"MASTER_USER_FUNCTIONS"
+#	"MASTER_USER_FUNCTIONS"
 )
 
 #Macros to be written to libconf.h

@@ -24,13 +24,6 @@ endif()
 
 compileAsC99()
 
-option(iothub_client_sample "set iothub_client to OFF to skip building for iothub_client. Default is ON" OFF)
-option(sqlite_persistence "set sqlite_persistence to ON which enable use sqlite as persistent storage. Default is OFF" OFF)
-option(device_management "set iotdm_client to OFF to skip building for iot device mangement client. Default is ON" OFF)
-option(bos "set bos to OFF to skip building for bos client. Default is ON" OFF)
-option(openssl_enable "set use_openssl to ON if your platform supports openssl" ON)
-#option(mbedtls_enable "set use mbedtls to ON if your platform supports mbedtls" ON)
-#option(wolfssl_enable "set this if your platform supports wolfssl" ON)
 
 include_directories(../certs)
 include_directories(../parson)
@@ -105,7 +98,7 @@ include_directories(${SHARED_UTIL_INC_FOLDER})
 include_directories(${MQTT_INC_FOLDER})
 
 if (WINCE)
-include_directories(${SHARED_UTIL_INC_FOLDER}/azure_c_shared_utility/windowsce) #windowsce SDK doesn't have stdbool.h
+    include_directories(${SHARED_UTIL_INC_FOLDER}/azure_c_shared_utility/windowsce) #windowsce SDK doesn't have stdbool.h
 ENDIF()
 
 IF(WIN32)
@@ -116,9 +109,6 @@ ENDIF(WIN32)
 
 set(IOTHUB_CLIENT_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using iothub_client lib" FORCE)
 
-include_directories(${AZURE_C_SHARED_UTILITY_INCLUDES})
-include_directories(${SHARED_UTIL_INC_FOLDER})
-
 if (WINCE)
     include_directories(${SHARED_UTIL_INC_FOLDER}/azure_c_shared_utility/windowsce) #windowsce SDK doesn't have stdbool.h
 ENDIF()
@@ -128,6 +118,7 @@ include_directories(${IOTHUB_CLIENT_INC_FOLDER})
 # add_subdirectory(samples)
 
 if(${build_as_dynamic})
+
     add_library(iothub_client SHARED
             ${iothub_client_c_files}
             ${iothub_client_h_files}
@@ -136,23 +127,24 @@ if(${build_as_dynamic})
     target_link_libraries(iothub_client ${iothub_client_libs})
 
 else()
+
     add_library(iothub_client
-            ${iothub_client_c_files}
-            ${iothub_client_h_files}
-            )
+        ${iothub_client_c_files}
+        ${iothub_client_h_files}
+    )
 endif()
 
 if(${mbedtls_enable})
-target_link_libraries(iothub_client ${iothub_client_libs} ${mbedlibs})
+    target_link_libraries(iothub_client ${iothub_client_libs} ${mbedlibs})
 endif()
 
 if(${wolfssl_enable})
     target_link_libraries(iothub_client ${iothub_client_libs} ${wolfssllibs})
 endif()
 
-linkSharedUtil(iothub_client)
-set(iothub_client_libs
-    iothub_client
-    aziotsharedutil
-    ${iothub_client_libs}
-)
+# linkSharedUtil(iothub_client)
+# set(iothub_client_libs
+#     iothub_client
+#     aziotsharedutil
+#     ${iothub_client_libs}
+# )

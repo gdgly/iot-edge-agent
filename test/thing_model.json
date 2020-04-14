@@ -1,0 +1,87 @@
+{
+    "token":"1245sfvhjkklm",
+    "timestamp":"2019-07-09T09:30:08.230Z",
+    "body":[
+        {
+            "name":"DLT698_Meter",
+            "protoType":"DLT698.45",
+            "body":[
+                {
+                    "DBTopic": "DLT698.45/notify/spont/DLT698_Meter/DLT698_Meter_01",
+                    "acqInt": 5,
+                    "acqMode": "realtime",
+                    "startTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 0
+                    },
+                    "endTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 5
+                    },
+                    "AcqFile":{
+                        "id":1,
+                        "m":"Wh",
+                        "oad":"00000200",
+                        "math":"-2",
+                        "big":0,
+                        "addr":"001911270001"
+                    }
+                },
+                {
+                    "DBTopic": "DLT698.45/notify/spont/DLT698_Meter/DLT698_Meter_01",
+                    "acqInt": 5,
+                    "acqMode": "realtime",
+                    "startTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 0
+                    },
+                    "endTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 5
+                    },
+                    "AcqFile":{
+                        "id":2,
+                        "m":"SupWh",
+                        "oad":"00100200",
+                        "math":"-2",
+                        "big":0,
+                        "addr":"001911270001"
+                    }
+                },
+                {
+                    "DBTopic": "DLT698.45/notify/spont/DLT698_Meter/DLT698_Meter_01",
+                    "acqInt": 5,
+                    "acqMode": "realtime",
+                    "startTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 0
+                    },
+                    "endTime":{
+                        "InvMons": -1,
+                        "InvDays": -1,
+                        "InvHous": 17,
+                        "InvMins": 5
+                    },
+                    "AcqFile":{
+                        "id":3,
+                        "m":"RtlWh",
+                        "oad":"00200200",
+                        "math":"-2",
+                        "big":0,
+                        "addr":"001911270001"
+                    }
+                }
+            ]
+        }
+    ]
+}

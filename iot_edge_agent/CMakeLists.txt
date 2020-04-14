@@ -27,22 +27,26 @@ include_directories(../parson)
 
 set(iot_edge_agent_c_files
     ../parson/parson.c
-    ./src/serial_port.c
-    ./src/modbus_rtu.c
+    ./src/modbus.c
+    ./src/dlt_698.c
     ./src/protocol_manager.c
-    ./src/iot_model.c
+    ./src/channel_model.c
     ./src/iotea_client.c
-    ./src/main.c
+    ./src/iot_main.c
+    ./src/serial_io.c
+    ./src/utils.c
 )
 
 set(iot_edge_agent_h_files
     ../parson/parson.h
-    ./inc/serial_port.h
-    ./inc/modbus_rtu.h
+    ./inc/modbus.h
+    ./inc/dlt_698.h
     ./inc/protocol_manager.h
-    ./inc/iot_model.h
+    ./inc/channel_model.h
     ./inc/iotea_client.h
-    ./inc/main.h
+    ./inc/iot_main.h
+    ./inc/serial_io.h
+    ./inc/utils.h
 )
 
 include_directories(${AZURE_C_SHARED_UTILITY_INCLUDES})
@@ -50,6 +54,8 @@ include_directories(${SHARED_UTIL_INC_FOLDER})
 include_directories(${MQTT_INC_FOLDER})
 include_directories(${IOTHUB_CLIENT_INC_FOLDER})
 include_directories(${LIGHTMODBUS_INC_FOLDER})
+include_directories(${DLT698_INC_FOLDER})
+
 set(IOT_MODEBUS_INC_FOLDER ${CMAKE_CURRENT_LIST_DIR}/inc CACHE INTERNAL "this is what needs to be included if using iothub_client lib" FORCE)
 include_directories(${IOT_MODEBUS_INC_FOLDER})
 
@@ -61,9 +67,8 @@ add_executable(
 
 target_link_libraries(
     iot-edge-agent
-    # aziotsharedutil
-    # pthread
     lightmodbus
+    dlt698
     iothub_client
     umqtt
 )

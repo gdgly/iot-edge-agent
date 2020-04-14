@@ -61,7 +61,7 @@ ModbusError modbusParseResponse( ModbusMaster *status )
 	status->exception.address = 0;
 	status->exception.function = 0;
 	status->exception.code = 0;
-
+	
 	#if !defined( LIGHTMODBUS_STATIC_MEM_MASTER_DATA ) && !defined( LIGHTMODBUS_NO_MASTER_DATA_BUFFER  )
 		free( status->data.coils );
 		status->data.coils = NULL;
@@ -83,6 +83,7 @@ ModbusError modbusParseResponse( ModbusMaster *status )
 			return MODBUS_ERROR_PARSE;
 		}
 
+	
 	//Check both response and request frames CRC
 	//The CRC of the frames are copied to a variable in order to avoid an unaligned memory access,
 	//which can cause runtime errors in some platforms like AVR and ARM.
@@ -99,13 +100,15 @@ ModbusError modbusParseResponse( ModbusMaster *status )
 		return MODBUS_ERROR_PARSE;
 	}
 
+	
+
 	ModbusParser *parser = (ModbusParser*) status->response.frame;
 	ModbusParser *requestParser = (ModbusParser*) status->request.frame;
 
 	uint8_t functionMatch = 0, functionExec = 0;
 	status->parseError = MODBUS_FERROR_OK;
 
-	//Check user defined functions
+	// Check user defined functions
 	#ifdef LIGHTMODBUS_MASTER_USER_FUNCTIONS
 		if ( status->userFunctions != NULL )
 		{
@@ -132,6 +135,7 @@ ModbusError modbusParseResponse( ModbusMaster *status )
 		}
 	#endif
 
+	
 	if ( !functionMatch )
 	{
 		functionExec = 1;
